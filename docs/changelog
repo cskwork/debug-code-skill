@@ -1,0 +1,13 @@
+# Changelog
+
+All notable changes to the debug-code skill.
+
+## 1.0.0 — 2026-07-30
+
+### Added
+- Initial public release.
+- Evidence-first diagnostic workflow: incident gate, access mapping, orientation, signal hierarchy, reproduction, hypothesis ranking, surgical probing, fix, adversarial verification, and report.
+- `references/production-probes.md` — bounded, read-only production evidence request templates for logs, metrics, traces, deployment history, dev DB, production SQL, and temporary instrumentation.
+- `references/production-bug-patterns.md` — symptom-directed checklist of high-value checks, end-to-end trace points, legacy-code traps, focused probes, and fixes to reject without causal evidence.
+- `evals/trigger-cases.md` — sanity-check cases for skill discovery and non-discovery.
+- GitHub Pages landing page with English (default) and Korean language toggle.

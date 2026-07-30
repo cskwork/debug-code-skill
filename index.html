@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>debug-code skill: find the earliest violated invariant, not the line that crashed</title>
+<meta name="description" content="An agent skill that teaches a coding assistant to diagnose hard production and legacy-code bugs when access is partial. Evidence-first, access-aware, never hides a symptom.">
+<meta name="theme-color" content="#0d1014">
+<meta property="og:title" content="debug-code skill">
+<meta property="og:description" content="Diagnose production bugs when access is partial. Find the earliest violated invariant, build the strongest available signal, fix the smallest safe change.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d1014'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='15' fill='%23e8a86a' text-anchor='middle'%3E%E2%9C%B7%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1014; --bg-2:#12161c; --bg-3:#171d25;
+    --line:#222a34; --line-2:#2c3742;
+    --text:#e7ebf0; --muted:#9aa5b4; --faint:#697585;
+    --accent:#e8a86a; --accent-ink:#1a0f06; --accent-soft:rgba(232,168,106,.12);
+    --teal:#5cc6c6; --teal-soft:rgba(92,198,198,.10);
+    --rose:#e88e74; --rose-soft:rgba(232,142,116,.10);
+    --warn:#e6b450; --warn-soft:rgba(230,180,80,.10);
+    --r-sm:8px; --r:12px; --r-lg:16px;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --display:"Space Grotesk",var(--sans);
+    --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --maxw:1180px;
+  }
+  html[lang="ko"]{
+    --sans:"Noto Sans KR",var(--sans);
+    --display:"Noto Sans KR",var(--display);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth; overflow-x:hidden}
+  .hero-grid>div, .panel-split>div, .show>div, .cols>div, .steps>div, .maps>div, .stats>div, .tier>div{min-width:0}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    margin:0; background:var(--bg); color:var(--text); overflow-x:hidden;
+    font-family:var(--sans); font-size:16px; line-height:1.6;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto; padding:0 24px}
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline; text-underline-offset:3px}
+  h1,h2,h3{font-family:var(--display); letter-spacing:-.02em; line-height:1.05; margin:0}
+  .mono{font-family:var(--mono)}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 18px
+  }
+
+  /* nav */
+  header.nav{position:sticky; top:0; z-index:20; height:64px;
+    background:rgba(13,16,20,.78); backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line)}
+  .nav .wrap{height:64px; display:flex; align-items:center; justify-content:space-between}
+  .brand{display:flex; align-items:center; gap:10px; font-family:var(--display);
+    font-weight:600; letter-spacing:-.01em; color:var(--text)}
+  .brand:hover{text-decoration:none}
+  .brand .mark{width:26px; height:26px; border-radius:7px; background:var(--accent-soft);
+    border:1px solid var(--line-2); display:grid; place-items:center;
+    font-family:var(--mono); color:var(--accent); font-size:14px}
+  .nav-right{display:flex; align-items:center; gap:18px}
+  .nav-right a{color:var(--muted); font-size:14px}
+  .nav-right a:hover{color:var(--text); text-decoration:none}
+  .nav-cta{display:inline-flex; align-items:center; gap:8px;
+    border:1px solid var(--line-2); border-radius:var(--r-sm);
+    padding:8px 14px; color:var(--text)!important; font-size:14px; font-weight:500}
+  .nav-cta:hover{border-color:var(--accent); background:var(--accent-soft); text-decoration:none}
+  /* language toggle */
+  .lang-toggle{display:inline-flex; border:1px solid var(--line-2); border-radius:var(--r-sm); overflow:hidden}
+  .lang-toggle button{background:transparent; border:0; color:var(--faint); font-family:var(--mono);
+    font-size:12px; padding:6px 10px; cursor:pointer; letter-spacing:.05em}
+  .lang-toggle button.active{background:var(--accent-soft); color:var(--accent)}
+  @media (max-width:620px){ .nav-right .hide-sm{display:none} }
+
+  /* buttons */
+  .btn{display:inline-flex; align-items:center; gap:9px; font-weight:600;
+    font-size:15px; padding:13px 22px; border-radius:var(--r-sm); cursor:pointer;
+    border:1px solid transparent; transition:transform .15s ease, background .15s ease, border-color .15s ease}
+  .btn-primary{background:var(--accent); color:var(--accent-ink)}
+  .btn-primary:hover{text-decoration:none; transform:translateY(-1px); background:#f0b67a}
+  .btn-ghost{background:transparent; color:var(--text); border-color:var(--line-2)}
+  .btn-ghost:hover{text-decoration:none; border-color:var(--accent); background:var(--accent-soft)}
+  @media (prefers-reduced-motion:reduce){ .btn:hover{transform:none} }
+
+  /* hero */
+  .hero{padding:clamp(48px,9vw,96px) 0 64px; border-bottom:1px solid var(--line)}
+  .hero-grid{display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:56px; align-items:center}
+  .hero h1{font-size:clamp(30px,6vw,54px); font-weight:700; overflow-wrap:break-word}
+  .hero h1 .l{display:block}
+  .hero h1 .g{color:var(--accent)}
+  .hero p.sub{color:var(--muted); font-size:clamp(16px,2.2vw,19px); margin:22px 0 30px; max-width:48ch}
+  .hero-cta{display:flex; gap:14px; flex-wrap:wrap}
+  @media (max-width:860px){
+    .hero-grid{grid-template-columns:minmax(0,1fr); gap:36px}
+    .hero{padding-top:40px}
+  }
+
+  /* code panel */
+  .panel{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r-lg);
+    overflow:hidden; max-width:100%; box-shadow:0 24px 60px -30px rgba(0,0,0,.7)}
+  .panel-bar{display:flex; align-items:center; gap:8px; padding:12px 16px;
+    border-bottom:1px solid var(--line); background:var(--bg-3)}
+  .dot{width:11px; height:11px; border-radius:50%}
+  .panel-bar .name{margin-left:8px; font-family:var(--mono); font-size:12.5px; color:var(--faint)}
+  .panel-split{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .panel-split > div{padding:16px 18px; min-width:0; overflow:hidden}
+  .panel-split > div + div{border-left:1px solid var(--line)}
+  .tag{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    display:inline-block; margin-bottom:10px; padding:2px 9px; border-radius:999px}
+  .tag.cause{color:var(--rose); background:var(--rose-soft); border:1px solid rgba(232,142,116,.25)}
+  .tag.symptom{color:var(--warn); background:var(--warn-soft); border:1px solid rgba(230,180,80,.25)}
+  pre{margin:0; font-family:var(--mono); font-size:12.5px; line-height:1.7;
+    color:#cdd6e2; white-space:pre; overflow-x:auto; max-width:100%}
+  pre .c{color:var(--faint)}
+  pre .k{color:#82b9ff}
+  pre .g{color:var(--accent)}
+  pre .r{color:var(--rose)}
+  pre .w{color:var(--warn)}
+  pre .t{color:var(--teal)}
+  @media (max-width:600px){ .panel-split{grid-template-columns:minmax(0,1fr)}
+    .panel-split > div + div{border-left:0; border-top:1px solid var(--line)} }
+
+  /* sections */
+  section{padding:clamp(64px,10vw,104px) 0}
+  .sec-head{max-width:64ch; margin-bottom:48px}
+  .sec-head h2{font-size:clamp(28px,4.4vw,42px); font-weight:600}
+  .sec-head p{color:var(--muted); font-size:17px; margin:16px 0 0}
+  .divide{border-top:1px solid var(--line)}
+
+  /* signal tier */
+  .tier{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line);
+    border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden}
+  .tier > div{background:var(--bg-2); padding:26px 22px}
+  .tier .lvl{font-family:var(--mono); font-size:12px; color:var(--accent); letter-spacing:.06em;
+    border:1px solid var(--line-2); width:34px; height:34px; border-radius:9px;
+    display:grid; place-items:center; margin-bottom:14px}
+  .tier h3{font-size:16px; font-weight:600; margin-bottom:8px}
+  .tier p{color:var(--muted); font-size:13.5px; line-height:1.55; margin:0}
+  .tier .best{background:var(--bg-3)}
+  .tier .best .lvl{border-color:var(--accent); background:var(--accent-soft)}
+  @media (max-width:860px){ .tier{grid-template-columns:1fr 1fr} }
+  @media (max-width:560px){ .tier{grid-template-columns:1fr} }
+
+  /* bug-chain steps */
+  .chain{display:flex; flex-direction:column; gap:1px}
+  .chain-step{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r);
+    padding:20px 24px; display:flex; align-items:flex-start; gap:20px}
+  .chain-step + .chain-step{border-top:0; border-radius:0}
+  .chain-step:last-child{border-radius:0 0 var(--r) var(--r)}
+  .chain-step:first-child{border-radius:var(--r) var(--r) 0 0}
+  .chain-arrow{text-align:center; color:var(--faint); font-family:var(--mono); font-size:18px; padding:2px 0}
+  .chain-step .num{font-family:var(--mono); font-size:13px; color:var(--accent);
+    border:1px solid var(--line-2); min-width:34px; height:34px; border-radius:9px;
+    display:grid; place-items:center; flex:none}
+  .chain-step.is-cause .num{border-color:var(--rose); background:var(--rose-soft); color:var(--rose)}
+  .chain-step .body{min-width:0}
+  .chain-step b{font-family:var(--display); font-weight:600; font-size:16px; display:block; margin-bottom:4px}
+  .chain-step span{color:var(--muted); font-size:14.5px}
+  .chain-step.is-cause{border-color:rgba(232,142,116,.3)}
+  .chain-tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    display:inline-block; margin-bottom:8px; padding:2px 8px; border-radius:999px}
+  .chain-tag.cause{color:var(--rose); background:var(--rose-soft); border:1px solid rgba(232,142,116,.25)}
+  .chain-tag.prop{color:var(--warn); background:var(--warn-soft); border:1px solid rgba(230,180,80,.25)}
+  .chain-tag.show{color:var(--teal); background:var(--teal-soft); border:1px solid rgba(92,198,198,.25)}
+
+  /* cols */
+  .cols{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:48px; align-items:start}
+  .crit{list-style:none; margin:0; padding:0}
+  .crit li{display:flex; gap:18px; padding:20px 0; border-top:1px solid var(--line)}
+  .crit li:first-child{border-top:0; padding-top:0}
+  .crit .idx{font-family:var(--mono); color:var(--accent); font-size:14px; min-width:28px}
+  .crit b{font-family:var(--display); font-weight:600; display:block; margin-bottom:3px}
+  .crit span{color:var(--muted); font-size:15px}
+  .aside{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r-lg); padding:28px}
+  .aside .q{font-family:var(--display); font-size:20px; line-height:1.4; font-weight:500}
+  .aside .q .g{color:var(--accent)}
+  .aside .by{margin-top:18px; color:var(--faint); font-family:var(--mono); font-size:12.5px}
+  @media (max-width:860px){ .cols{grid-template-columns:1fr; gap:32px} }
+
+  /* workflow steps */
+  .wsteps{display:grid; grid-template-columns:repeat(4,1fr); gap:20px}
+  .wstep{border:1px solid var(--line); border-radius:var(--r); background:var(--bg-2); padding:22px}
+  .wstep .n{font-family:var(--mono); font-size:13px; color:var(--accent);
+    border:1px solid var(--line-2); width:34px; height:34px; border-radius:9px;
+    display:grid; place-items:center; margin-bottom:14px}
+  .wstep h3{font-size:16px; font-weight:600; margin-bottom:6px}
+  .wstep p{color:var(--muted); font-size:14px; line-height:1.55; margin:0}
+  @media (max-width:860px){ .wsteps{grid-template-columns:1fr 1fr} }
+  @media (max-width:560px){ .wsteps{grid-template-columns:1fr} }
+
+  /* stats */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:20px; margin-bottom:52px}
+  .stat{border:1px solid var(--line); border-radius:var(--r); padding:24px; background:var(--bg-2)}
+  .stat .v{font-family:var(--display); font-size:38px; font-weight:700; letter-spacing:-.03em}
+  .stat .l{color:var(--muted); font-size:13.5px; margin-top:6px}
+  @media (max-width:760px){ .stats{grid-template-columns:1fr 1fr} }
+
+  /* reject list */
+  .reject{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .reject div{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r); padding:16px 18px;
+    color:var(--muted); font-size:14.5px; display:flex; gap:12px; align-items:flex-start}
+  .reject .x{color:var(--rose); font-family:var(--mono); font-size:16px; flex:none; line-height:1.4}
+  @media (max-width:700px){ .reject{grid-template-columns:1fr} }
+
+  /* install */
+  .install-box{background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden}
+  .cmd{display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:18px 20px; font-family:var(--mono); font-size:14px; color:#cdd6e2}
+  .cmd + .cmd{border-top:1px solid var(--line)}
+  .cmd code{color:#cdd6e2; word-break:break-all}
+  .cmd code .g{color:var(--accent)}
+  .copy{flex:none; background:transparent; border:1px solid var(--line-2); color:var(--muted);
+    font-family:var(--mono); font-size:12px; padding:7px 12px; border-radius:var(--r-sm); cursor:pointer}
+  .copy:hover{border-color:var(--accent); color:var(--accent)}
+  .install-note{color:var(--muted); font-size:14.5px; margin-top:18px}
+
+  /* footer */
+  footer{border-top:1px solid var(--line); padding:48px 0; color:var(--faint); font-size:14px}
+  .foot{display:flex; justify-content:space-between; gap:24px; flex-wrap:wrap; align-items:flex-start}
+  .foot a{color:var(--muted)}
+  .foot .credit{max-width:52ch; line-height:1.6}
+
+  /* reveal */
+  .reveal{opacity:1; transform:none}
+  .anim .reveal{opacity:0; transform:translateY(14px); transition:opacity .6s ease, transform .6s ease}
+  .anim .reveal.in{opacity:1; transform:none}
+
+  /* i18n: show/hide by lang */
+  [data-en],[data-ko]{display:none}
+  html[lang="en"] [data-en]{display:revert}
+  html[lang="ko"] [data-ko]{display:revert}
+  /* keep inline elements inline */
+  html[lang="en"] .inline[data-en], html[lang="ko"] .inline[data-ko]{display:inline}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="mark">✷</span> debug-code</a>
+    <nav class="nav-right">
+      <div class="lang-toggle" role="group" aria-label="Language">
+        <button data-lang="en" class="active">EN</button>
+        <button data-lang="ko">한</button>
+      </div>
+      <a class="hide-sm" href="#signal">Signal</a>
+      <a class="hide-sm" href="#chain">Bug chain</a>
+      <a class="hide-sm" href="#install">Install</a>
+      <a class="nav-cta" href="https://github.com/cskwork/debug-code-skill" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <p class="eyebrow"><span data-en>Agent skill</span><span data-ko>에이전트 스킬</span></p>
+        <h1>
+          <span class="l" data-en>Find the <span class="g">earliest</span></span>
+          <span class="l" data-en><span class="g">violated invariant</span>,</span>
+          <span class="l" data-en>not the line that crashed.</span>
+          <span class="l" data-ko>터진 줄이 아니라</span>
+          <span class="l" data-ko><span class="g">처음 깨진 불변식</span>을 찾아라.</span>
+        </h1>
+        <p class="sub" data-en>A skill that teaches your coding agent to diagnose hard production and legacy-code bugs when access is partial. Evidence-first, access-aware, and it never hides a symptom.</p>
+        <p class="sub" data-ko>접근 권한이 제한적인 상황에서 프로덕션·레거시 버그를 진단하도록 코딩 에이전트를 가르치는 스킬. 증거 우선, 접근 권한 인식, 증상을 덮지 않는다.</p>
+        <div class="hero-cta">
+          <a class="btn btn-primary" href="#install"><span data-en>Install the skill</span><span data-ko>설치하기</span></a>
+          <a class="btn btn-ghost" href="https://github.com/cskwork/debug-code-skill" target="_blank" rel="noopener"><span data-en>View on GitHub</span><span data-ko>GitHub에서 보기</span></a>
+        </div>
+      </div>
+
+      <div class="panel reveal" aria-hidden="true">
+        <div class="panel-bar">
+          <span class="dot" style="background:#e8696a"></span>
+          <span class="dot" style="background:#e6b450"></span>
+          <span class="dot" style="background:#5ec27a"></span>
+          <span class="name">invoice-worker.go</span>
+        </div>
+        <div class="panel-split">
+          <div>
+            <span class="tag symptom">Symptom</span>
+<pre><span class="c">// duplicate invoices</span>
+<span class="c">// after queue retry</span>
+<span class="k">func</span> process(msg Message) {
+  inv := repo.Find(msg.ID)
+  <span class="k">if</span> inv == <span class="k">nil</span> {
+    inv = newInvoice(msg)
+  }
+  <span class="c">// ... writes + sends</span>
+  repo.Save(inv)
+}
+
+<span class="w">// surface: 500 error</span>
+<span class="w">// at the Save() call</span></pre>
+          </div>
+          <div>
+            <span class="tag cause">Earliest violation</span>
+<pre><span class="c">// the bug is here:</span>
+<span class="c">// check-then-act race</span>
+<span class="r">inv := repo.Find(msg.ID)</span>
+<span class="r">if inv == nil {</span>
+<span class="r">  inv = newInvoice(msg)</span>
+<span class="r">}</span>
+
+<span class="c">// two retries pass the</span>
+<span class="c">// nil check before either</span>
+<span class="c">// commits. both write.</span>
+
+<span class="t">// fix: idempotency key +</span>
+<span class="t">// unique constraint, not</span>
+<span class="t">// a bigger timeout.</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIGNAL HIERARCHY -->
+  <section id="signal">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow"><span data-en>The signal hierarchy</span><span data-ko>신호 우선순위</span></p>
+        <h2><span data-en>Build the <span style="color:var(--accent)">strongest</span> available signal</span><span data-ko><span style="color:var(--accent)">가장 강력한</span> 신호부터 만든다</span></h2>
+        <p data-en>Production access is rarely complete. The skill never blocks on the ideal — it works in code-only mode and tightens proof as evidence arrives.</p>
+        <p data-ko>프로덕션 접근 권한이 완전한 경우는 드물다. 이상적인 조건을 기다리지 않고 코드만으로 시작하며, 증거가 들어올수록 증명을 강화한다.</p>
+      </div>
+      <div class="tier reveal">
+        <div class="best">
+          <div class="lvl">L1</div>
+          <h3><span data-en>Red loop</span><span data-ko>재현 루프</span></h3>
+          <p data-en>A failing test reproduces the exact symptom at the real seam.</p>
+          <p data-ko>실패하는 테스트가 실제 지점에서 정확한 증상을 재현한다.</p>
+        </div>
+        <div>
+          <div class="lvl">L2</div>
+          <h3><span data-en>Production evidence</span><span data-ko>프로덕션 증거</span></h3>
+          <p data-en>A repeatable log, trace, or bounded read-only query shows the violated invariant.</p>
+          <p data-ko>반복 가능한 로그·트레이스·제한된 읽기 전용 쿼리가 깨진 불변식을 보여준다.</p>
+        </div>
+        <div>
+          <div class="lvl">L3</div>
+          <h3><span data-en>Surrogate</span><span data-ko>대체 재현</span></h3>
+          <p data-en>A local/dev fixture preserves the production condition and fails the same way.</p>
+          <p data-ko>로컬/개발 픽스처가 프로덕션 조건을 보존하고 같은 방식으로 실패한다.</p>
+        </div>
+        <div>
+          <div class="lvl">L4</div>
+          <h3><span data-en>Static-only</span><span data-ko>정적 분석만</span></h3>
+          <p data-en>Code, history, and contracts support a hypothesis. Lowers confidence, does not block.</p>
+          <p data-ko>코드·이력·계약이 가설을 뒷받침한다. 신뢰도는 낮지만 진단을 막지는 않는다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUG CHAIN -->
+  <section id="chain" class="divide">
+    <div class="wrap cols">
+      <div class="reveal">
+        <div class="sec-head" style="margin-bottom:28px">
+          <h2><span data-en>Trace the <span style="color:var(--accent)">bug chain</span></span><span data-ko><span style="color:var(--accent)">버그 체인</span>을 추적하라</span></h2>
+          <p data-en>The first boundary where behavior diverges from the invariant is more informative than the final exception.</p>
+          <p data-ko>동작이 불변식에서 처음 벗어나는 지점이, 최종 예외보다 훨씬 더 많은 것을 알려준다.</p>
+        </div>
+        <div class="chain">
+          <div class="chain-step is-cause">
+            <div class="num">1</div>
+            <div class="body">
+              <span class="chain-tag cause"><span data-en>Trigger + first invalid state</span><span data-ko>트리거 + 최초 무효 상태</span></span>
+              <b data-en>Duplicate delivery, no idempotency</b>
+              <b data-ko>중복 전달, 멱등성 없음</b>
+              <span data-en>Two retry messages pass the nil check before either commits.</span>
+              <span data-ko>두 재시도 메시지가 커밋 전 nil 검사를 동시에 통과한다.</span>
+            </div>
+          </div>
+          <div class="chain-arrow">↓</div>
+          <div class="chain-step">
+            <div class="num">2</div>
+            <div class="body">
+              <span class="chain-tag prop"><span data-en>Propagation</span><span data-ko>전파</span></span>
+              <b data-en>Both write a duplicate invoice</b>
+              <b data-ko>둘 다 중복 인보이스를 기록</b>
+              <span data-en>No unique constraint, so both inserts succeed.</span>
+              <span data-ko>유일 제약이 없어 두 insert 모두 성공한다.</span>
+            </div>
+          </div>
+          <div class="chain-arrow">↓</div>
+          <div class="chain-step">
+            <div class="num">3</div>
+            <div class="body">
+              <span class="chain-tag show"><span data-en>Visible symptom</span><span data-ko>표면 증상</span></span>
+              <b data-en>500 on the second Save()</b>
+              <b data-ko>두 번째 Save()에서 500</b>
+              <span data-en>The crash is at the surface, not the cause.</span>
+              <span data-ko>충돌은 표면에서 발생하고, 원인이 아니다.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="aside reveal">
+        <div class="q"><span data-en>Separate </span><span data-ko>구분하라: </span><span class="g inline" data-en>Fact</span><span class="g inline" data-ko>사실</span><span>, </span><span class="g inline" style="color:var(--warn)" data-en>Inference</span><span class="g inline" style="color:var(--warn)" data-ko>추론</span><span>, </span><span class="g inline" style="color:var(--teal)" data-en>Unknown</span><span class="g inline" style="color:var(--teal)" data-ko>미지</span><span data-en>.</span><span data-ko>.</span><br><br><span data-en>Never present code-only reasoning as an observed production fact. State what remains unverified.</span><span data-ko>코드만의 추론을 프로덕션 관측 사실로 말하지 마라. 검증되지 않은 것을 명시하라.</span></div>
+        <div class="by"><span data-en>// the discipline that prevents confident wrong answers</span><span data-ko>// 자신만만한 오답을 막는 원칙</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT IT DOES -->
+  <section class="divide">
+    <div class="wrap cols">
+      <div class="reveal">
+        <div class="sec-head" style="margin-bottom:28px">
+          <h2><span data-en>What the skill enforces</span><span data-ko>스킬이 강제하는 것</span></h2>
+        </div>
+        <ul class="crit">
+          <li><span class="idx">01</span><div><b><span data-en>Incident gate first</span><span data-ko>사고 게이트 우선</span></b><span data-en>If the symptom suggests active harm, it recommends containment and evidence preservation before deep diagnosis.</span><span data-ko>증상이 활성 피해를 시사하면 심층 진단 전 격리와 증거 보존을 권장한다.</span></span></li>
+          <li><span class="idx">02</span><div><b><span data-en>3–5 falsifiable hypotheses</span><span data-ko>3–5 반증 가능 가설</span></b><span data-en>Each with a prediction and a cheapest probe, before editing any code.</span><span data-ko>각각 예측과 최소 비용 탐침을 가지고, 코드 수정 전에 생성한다.</span></li>
+          <li><span class="idx">03</span><div><b><span data-en>Regression test before fix</span><span data-ko>수정 전 회귀 테스트</span></b><span data-en>Locks the bug down at the closest truthful seam, then applies the smallest safe patch.</span><span data-ko>가장 가까운 진짜 지점에서 버그를 잡고, 가장 작은 안전한 패치를 적용한다.</span></span></li>
+          <li><span class="idx">04</span><div><b><span data-en>Adversarial verification</span><span data-ko>대항 검증</span></b><span data-en>Reruns the strongest signal, then challenges: does this fix the cause or the manifestation?</span><span data-ko>가장 강한 신호를 재실행하고 도전한다: 원인을 고치는가, 표면을 가리는가?</span></span></li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="sec-head" style="margin-bottom:28px">
+          <h2><span data-en>What it refuses to do</span><span data-ko>거부하는 것</span></h2>
+        </div>
+        <div class="reject">
+          <div><span class="x">✕</span><span data-en>Catch-all that swallows the exception</span><span data-ko>예외를 삼키는 catch-all</span></div>
+          <div><span class="x">✕</span><span data-en>Silent default masking bad state</span><span data-ko>잘못된 상태를 숨기는 기본값</span></div>
+          <div><span class="x">✕</span><span data-en>Broad retry without idempotency</span><span data-ko>멱등성 없는 광범위 재시도</span></div>
+          <div><span class="x">✕</span><span data-en>Larger timeout as the only change</span><span data-ko>유일한 변경이 타임아웃 증가</span></div>
+          <div><span class="x">✕</span><span data-en>Disabling validation or constraints</span><span data-ko>검증이나 제약 비활성화</span></div>
+          <div><span class="x">✕</span><span data-en>Rewriting legacy before the cause is proven</span><span data-ko>원인 증명 전 레거시 재작성</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WORKFLOW -->
+  <section class="divide">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow"><span data-en>The workflow</span><span data-ko>워크플로우</span></p>
+        <h2><span data-en>From symptom to smallest safe fix</span><span data-ko>증상에서 최소 안전 수정까지</span></h2>
+      </div>
+      <div class="wsteps reveal" style="margin-bottom:20px">
+        <div class="wstep">
+          <div class="n">01</div>
+          <h3><span data-en>Incident gate</span><span data-ko>사고 게이트</span></h3>
+          <p data-en>Contain active harm. Preserve evidence. Decide if investigation is safe.</p>
+          <p data-ko>활성 피해를 격리한다. 증거를 보존한다. 조사가 안전한지 결정한다.</p>
+        </div>
+        <div class="wstep">
+          <div class="n">02</div>
+          <h3><span data-en>Establish access</span><span data-ko>접근 권한 파악</span></h3>
+          <p data-en>One compact question for missing high-leverage info. Code-only is valid.</p>
+          <p data-ko>빠진 핵심 정보를 한 번만 묻는다. 코드만으로도 유효하다.</p>
+        </div>
+        <div class="wstep">
+          <div class="n">03</div>
+          <h3><span data-en>Orient & trace</span><span data-ko>탐색 & 추적</span></h3>
+          <p data-en>Read deeply. Build the bug chain. Cite concrete code at every link.</p>
+          <p data-ko>깊이 읽는다. 버그 체인을 만든다. 모든 연결에 코드를 인용한다.</p>
+        </div>
+        <div class="wstep">
+          <div class="n">04</div>
+          <h3><span data-en>Rank hypotheses</span><span data-ko>가설 정렬</span></h3>
+          <p data-en>3–5 falsifiable hypotheses. Probe the cheapest discriminator.</p>
+          <p data-ko>3–5 반증 가능 가설. 가장 저렴한 구분 탐침을 시도한다.</p>
+        </div>
+      </div>
+      <div class="wsteps reveal">
+        <div class="wstep">
+          <div class="n">05</div>
+          <h3><span data-en>Probe surgically</span><span data-ko>정밀 탐침</span></h3>
+          <p data-en>Every probe maps to a prediction. Bounded, read-only, operator-run.</p>
+          <p data-ko>모든 탐침은 예측에 대응한다. 제한적, 읽기 전용, 운영자 실행.</p>
+        </div>
+        <div class="wstep">
+          <div class="n">06</div>
+          <h3><span data-en>Fix at the root</span><span data-ko>근본 수정</span></h3>
+          <p data-en>Regression test first. Smallest patch to the earliest violated invariant.</p>
+          <p data-ko>회귀 테스트 우선. 최초 깨진 불변식에 가장 작은 패치.</p>
+        </div>
+        <div class="wstep">
+          <div class="n">07</div>
+          <h3><span data-en>Verify adversarially</span><span data-ko>대항 검증</span></h3>
+          <p data-en>Rerun the strongest signal. Challenge the result. Separate local vs prod proof.</p>
+          <p data-ko>가장 강한 신호 재실행. 결과에 도전. 로컬과 프로덕션 증명을 분리.</p>
+        </div>
+        <div class="wstep">
+          <div class="n">08</div>
+          <h3><span data-en>Report honestly</span><span data-ko>정직한 보고</span></h3>
+          <p data-en>CONFIRMED | PROBABLE | POSSIBLE | INCONCLUSIVE. State what is unverified.</p>
+          <p data-ko>CONFIRMED | PROBABLE | POSSIBLE | INCONCLUSIVE. 검증되지 않은 것을 명시.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTALL -->
+  <section id="install" class="divide">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <h2><span data-en>Install in one command</span><span data-ko>한 번에 설치</span></h2>
+        <p data-en>The skill is a folder of Markdown. Drop it into your agent's skills directory; no build step, no dependencies.</p>
+        <p data-ko>스킬은 Markdown 폴더다. 에이전트의 스킬 디렉토리에 넣으면 된다. 빌드도 의존성도 없다.</p>
+      </div>
+      <div class="install-box reveal" style="max-width:780px">
+        <div class="cmd">
+          <code><span class="c"># <span data-en>global, all projects</span><span data-ko>전역, 모든 프로젝트</span></span><br>git clone https://github.com/cskwork/debug-code-skill <span class="g">~/.claude/skills/debug-code</span></code>
+          <button class="copy" data-copy="git clone https://github.com/cskwork/debug-code-skill ~/.claude/skills/debug-code">Copy</button>
+        </div>
+        <div class="cmd">
+          <code><span class="c"># <span data-en>this project only</span><span data-ko>이 프로젝트만</span></span><br>git clone https://github.com/cskwork/debug-code-skill <span class="g">.claude/skills/debug-code</span></code>
+          <button class="copy" data-copy="git clone https://github.com/cskwork/debug-code-skill .claude/skills/debug-code">Copy</button>
+        </div>
+      </div>
+      <p class="install-note reveal"><span data-en>Then run </span><span data-ko>그리고 </span><code class="mono" style="color:var(--accent)">/debug-code</code><span data-en>, or just describe the symptom.</span><span data-ko>를 실행하거나 증상을 설명하라.</span></p>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="credit">
+      <strong style="color:var(--muted); font-family:var(--display)">debug-code skill</strong><br>
+      <span data-en>Method informed by Google SRE troubleshooting, OWASP logging guidance, and field-tested debugging practices.</span>
+      <span data-ko>Google SRE 트러블슈팅, OWASP 로깅 가이드, 현장 검증 디버깅 실무에서 방법론을 참고했다.</span>
+      <span data-en>An independent skill, MIT licensed.</span><span data-ko>독립 스킬, MIT 라이선스.</span>
+    </div>
+    <div>
+      <a href="https://github.com/cskwork/debug-code-skill" target="_blank" rel="noopener"><span data-en>Repository</span><span data-ko>저장소</span></a> &nbsp;/&nbsp;
+      <a href="https://github.com/cskwork/debug-code-skill/blob/main/SKILL.md" target="_blank" rel="noopener">SKILL.md</a> &nbsp;/&nbsp;
+      <a href="https://github.com/cskwork/debug-code-skill/blob/main/docs/changelog" target="_blank" rel="noopener"><span data-en>Changelog</span><span data-ko>변경이력</span></a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Reveal-on-scroll, only when motion is allowed.
+  (function () {
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || !("IntersectionObserver" in window)) return;
+    document.body.classList.add("anim");
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
+    document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+  })();
+
+  // Copy buttons
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.getAttribute("data-copy");
+      navigator.clipboard.writeText(text).then(function () {
+        var old = btn.textContent;
+        btn.textContent = "Copied";
+        btn.style.color = "var(--accent)";
+        btn.style.borderColor = "var(--accent)";
+        setTimeout(function () { btn.textContent = old; btn.style.color = ""; btn.style.borderColor = ""; }, 1600);
+      }).catch(function () { btn.textContent = "Copy failed"; });
+    });
+  });
+
+  // Language toggle
+  (function () {
+    function setLang(lang) {
+      document.documentElement.lang = lang;
+      document.querySelectorAll(".lang-toggle button").forEach(function (b) {
+        b.classList.toggle("active", b.getAttribute("data-lang") === lang);
+      });
+      try { localStorage.setItem("debug-code-lang", lang); } catch (e) {}
+    }
+    var saved = null;
+    try { saved = localStorage.getItem("debug-code-lang"); } catch (e) {}
+    if (saved) setLang(saved);
+    document.querySelectorAll(".lang-toggle button").forEach(function (b) {
+      b.addEventListener("click", function () { setLang(b.getAttribute("data-lang")); });
+    });
+  })();
+</script>
+</body>
+</html>
