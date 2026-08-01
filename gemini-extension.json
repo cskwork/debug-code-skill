@@ -1,6 +1,6 @@
 {
   "name": "debug-code",
   "version": "0.1.0",
-  "description": "Diagnoses and fixes hard production and legacy-code bugs using runtime evidence, code-path tracing, reproducible tests,...",
+  "description": "Diagnose and fix hard bugs using runtime evidence and tracing. Use when debugging broken or intermittent behavior.",
   "contextFileName": "GEMINI.md"
 }
