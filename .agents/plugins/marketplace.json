@@ -1,0 +1,21 @@
+{
+  "name": "debug-code",
+  "interface": {
+    "displayName": "Debug Code"
+  },
+  "plugins": [
+    {
+      "name": "debug-code",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/cskwork/debug-code-skill.git",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
