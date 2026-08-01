@@ -1,6 +1,6 @@
 ---
 name: debug-code
-description: Diagnoses and fixes hard production and legacy-code bugs using runtime evidence, code-path tracing, reproducible tests, and safe human-run probes when production access is restricted. Use when a user reports broken, intermittent, slow, data-dependent, environment-only, or production-only behavior; provides an error or log; asks for root-cause analysis; or requests a focused hunt for a production defect in a legacy path. Not for general style review or unrelated refactoring.
+description: Diagnose and fix hard bugs using runtime evidence and tracing. Use when debugging broken or intermittent behavior.
 license: MIT
 compatibility: Requires repository access. Production access is optional; the workflow can use logs, metrics, traces, dev or staging environments, dev databases, and operator-run read-only production queries when available.
 metadata:
