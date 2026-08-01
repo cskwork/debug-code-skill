@@ -1,0 +1,16 @@
+{
+  "$schema": "https://www.schemastore.org/claude-code-marketplace.json",
+  "name": "debug-code",
+  "description": "Diagnoses and fixes hard production and legacy-code bugs using runtime evidence, code-path tracing, reproducible tests, ",
+  "owner": {
+    "name": "cskwork"
+  },
+  "plugins": [
+    {
+      "name": "debug-code",
+      "description": "Diagnoses and fixes hard production and legacy-code bugs using runtime evidence, code-path tracing, reproducible tests, ",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
