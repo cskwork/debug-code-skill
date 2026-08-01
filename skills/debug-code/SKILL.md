@@ -1,11 +1,8 @@
 ---
 name: debug-code
 description: Diagnose and fix hard bugs using runtime evidence and tracing. Use when debugging broken or intermittent behavior.
-license: MIT
-compatibility: Requires repository access. Production access is optional; the workflow can use logs, metrics, traces, dev or staging environments, dev databases, and operator-run read-only production queries when available.
-metadata:
-  version: "1.0.0"
 ---
+
 
 # Debug Code
 
