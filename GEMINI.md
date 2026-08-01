@@ -1,4 +1,4 @@
 # debug-code
 
-@./SKILL.md
+@./skills/debug-code/SKILL.md
 
