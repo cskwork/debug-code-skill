@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.png" width="120" alt="logo" /></p>
+
 # debug-code
 
 A portable Agent Skill for diagnosing hard production and legacy-code bugs when production access is partial or unavailable. It teaches a coding assistant to find the **earliest violated invariant**, not merely the line where the failure surfaces, and to produce the smallest safe fix with proof proportionate to the available access.
