@@ -1,8 +1,6 @@
-# OS
 .DS_Store
-Thumbs.db
-
-# Editor
-.vscode/
-.idea/
-*.swp
+__pycache__/
+*.py[cod]
+evals/results/
+node_modules/
+dist/
