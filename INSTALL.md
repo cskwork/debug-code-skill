@@ -6,7 +6,7 @@
 ### Install
 
 ```bash
-claude plugin marketplace add cskwork/debug-code
+claude plugin marketplace add cskwork/debug-code-skill
 claude plugin install debug-code@debug-code
 ```
 
@@ -39,7 +39,7 @@ claude plugin marketplace remove debug-code
 ### Install
 
 ```bash
-codex plugin marketplace add cskwork/debug-code --ref main
+codex plugin marketplace add cskwork/debug-code-skill --ref main
 codex plugin add debug-code@debug-code
 ```
 
@@ -66,14 +66,14 @@ codex plugin marketplace remove debug-code
 ### Install (extension, always-on)
 
 ```bash
-gemini extensions install https://github.com/cskwork/debug-code
+gemini extensions install https://github.com/cskwork/debug-code-skill
 ```
 
 ### Install (command, opt-in)
 
 ```bash
 mkdir -p ~/.gemini/commands
-curl -fsSL https://raw.githubusercontent.com/cskwork/debug-code/main/skills/debug-code/agents/gemini.toml \
+curl -fsSL https://raw.githubusercontent.com/cskwork/debug-code-skill/main/skills/debug-code-skill/agents/gemini.toml \
   -o ~/.gemini/commands/debug-code.toml
 ```
 
@@ -99,8 +99,8 @@ gemini extensions uninstall debug-code
 ### Install
 
 ```bash
-npx skills add cskwork/debug-code
-npx skills add cskwork/debug-code -g
+npx skills add cskwork/debug-code-skill
+npx skills add cskwork/debug-code-skill -g
 ```
 
 Type `/debug-code` in a new agent chat.
@@ -131,7 +131,7 @@ npx skills remove debug-code
 ### Install
 
 ```bash
-agy plugin install https://github.com/cskwork/debug-code
+agy plugin install https://github.com/cskwork/debug-code-skill
 ```
 
 ### Verify

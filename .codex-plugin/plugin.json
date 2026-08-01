@@ -6,8 +6,8 @@
     "name": "cskwork",
     "url": "https://github.com/cskwork"
   },
-  "homepage": "https://github.com/cskwork/debug-code",
-  "repository": "https://github.com/cskwork/debug-code",
+  "homepage": "https://github.com/cskwork/debug-code-skill",
+  "repository": "https://github.com/cskwork/debug-code-skill",
   "license": "MIT",
   "keywords": [
     "debug-code",
@@ -25,7 +25,7 @@
     "capabilities": [
       "Instructions"
     ],
-    "websiteURL": "https://github.com/cskwork/debug-code",
+    "websiteURL": "https://github.com/cskwork/debug-code-skill",
     "defaultPrompt": [
       "Use debug-code for this task."
     ],
