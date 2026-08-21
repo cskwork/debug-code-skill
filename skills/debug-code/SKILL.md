@@ -1,6 +1,6 @@
 ---
 name: debug-code
-description: Diagnose and fix hard bugs using runtime evidence and tracing. Use when debugging broken or intermittent behavior.
+description: Diagnoses and fixes hard bugs using runtime evidence and code-path tracing. Use when behavior is broken, intermittent, or production-only, when a performance regression appears, or when a suspected legacy code path needs tracing.
 ---
 
 
@@ -114,6 +114,8 @@ Prefer primary evidence. Treat user reports as valid symptom evidence but not au
 
 ### 5. Rank falsifiable hypotheses
 
+Read `references/production-bug-patterns.md` (at the package root, beside `skills/`) after the code-path trace to widen the candidate set for hidden data, timing, concurrency, distributed-system, or resource bugs.
+
 Generate 3–5 hypotheses before editing code. For each use:
 
 > **H# — Cause:** …  
@@ -128,7 +130,7 @@ Test the highest-value discriminator first. Prefer probes at component boundarie
 
 For performance regressions, establish a baseline and use timing, profiling, traces, query plans, lock/wait evidence, or bisection before changing code.
 
-Load `references/production-probes.md` before requesting production logs, dashboards, traces, temporary instrumentation, or SQL.
+Read `references/production-probes.md` (at the package root, beside `skills/`) before requesting any production log, dashboard, trace, temporary instrumentation, or SQL.
 
 ### 6. Establish the causal chain
 
@@ -236,8 +238,3 @@ When requesting human-run evidence, provide one exact, minimal, copy-pasteable p
 - exactly which sanitized fields or counts to return.
 
 Do not bury uncertainty. A precise unresolved report is better than a persuasive false RCA.
-
-## Reference loading
-
-- Read `references/production-probes.md` when any production evidence must be requested or instrumentation/query safety matters.
-- Read `references/production-bug-patterns.md` after the initial code-path trace when a focused checklist would help identify hidden data, timing, concurrency, distributed-system, or resource bugs.
