@@ -1,6 +1,6 @@
 ---
 name: debug-code
-description: Diagnoses and fixes hard bugs using runtime evidence and code-path tracing. Use when behavior is broken, intermittent, or production-only, when a performance regression appears, or when a suspected legacy code path needs tracing.
+description: Diagnose and fix hard bugs or performance regressions through runtime evidence and code-path tracing, including restricted production evidence.
 ---
 
 
@@ -20,7 +20,7 @@ Never convert confidence into invented percentages. Separate **trigger**, **root
 
 ## Non-negotiables
 
-1. **Mitigate active harm first.** For ongoing data loss, security exposure, financial harm, or severe outage, preserve evidence and propose the safest reversible containment before deep diagnosis. Production actions require an authorized human.
+1. **Mitigate active harm first.** For ongoing data loss, security exposure, financial harm, or severe outage, preserve evidence and propose the safest reversible containment before deep diagnosis. Production actions require explicit authorization for the particular action.
 2. **Ask about access once, then continue.** Request only missing evidence sources in one grouped question. Do not block codebase analysis while waiting.
 3. **Evidence over plausibility.** Mark every material statement as observed, inferred, unknown, or ruled out. No evidence means hypothesis, not fact.
 4. **Production is read-only by default.** Never execute or request writes, locks, schema changes, broad exports, or unbounded production queries for diagnosis.
@@ -54,7 +54,7 @@ Summarize what is already known before asking anything:
 - known request, trace, job, tenant, user, or record identifier using a safe pseudonym;
 - recent release, configuration, schema, dependency, or traffic changes.
 
-Ask one compact access question, omitting anything already answered:
+If missing access or evidence blocks a useful discriminator, ask one compact question, omitting anything already answered:
 
 > Which evidence can be accessed now or supplied on request: dev/staging reproduction, dev DB, Grafana/metrics, application logs, traces/error tracker, deployment/config history, or operator-run read-only production SQL? Code-only is acceptable. If available, include the smallest safe locator: timestamp plus timezone, request/trace/job ID, pseudonymous tenant/user ID, and deployed version.
 
@@ -114,9 +114,9 @@ Prefer primary evidence. Treat user reports as valid symptom evidence but not au
 
 ### 5. Rank falsifiable hypotheses
 
-Read `references/production-bug-patterns.md` (at the package root, beside `skills/`) after the code-path trace to widen the candidate set for hidden data, timing, concurrency, distributed-system, or resource bugs.
+Consult `references/production-bug-patterns.md` (at the package root, beside `skills/`) when the trace leaves hidden data, timing, concurrency, distributed-system, or resource causes unresolved.
 
-Generate 3–5 hypotheses before editing code. For each use:
+Keep only plausible competing hypotheses; do not invent alternatives to meet a count. For each useful hypothesis record:
 
 > **H# — Cause:** …  
 > **Evidence for / against:** …  
@@ -189,11 +189,11 @@ Before declaring the diagnosis or fix complete, independently challenge it:
 - Could the diagnostic query or instrumentation itself harm production or expose data?
 - What exact signal triggers rollback?
 
-For high-impact, ambiguous, security-sensitive, financial, or data-integrity bugs, use an independent read-only subagent as the skeptic when available. Give it the symptom, evidence ledger, relevant code, tests, and diff; ask it to find disconfirming evidence and alternative causal chains. Do not treat agent agreement as proof.
+For high-impact, ambiguous, security-sensitive, financial, or data-integrity bugs, use an independent read-only subagent as the skeptic when available and authorized. Give it the symptom, evidence ledger, relevant code, tests, and diff; ask it to find disconfirming evidence and alternative causal chains. Do not treat agent agreement as proof.
 
 ### 9. Verify, clean up, and prepare rollout
 
-Run and report exact commands for:
+Run and report the applicable checks below. Reuse results that cover the unchanged final state; rerun for changed code, failures, or unresolved concerns:
 
 - the regression test;
 - the original reproduction/evidence loop;
@@ -213,7 +213,7 @@ Before closure:
 
 ## Output contract
 
-Use this structure for substantive updates and the final result:
+For a substantial final report, use the applicable fields below. Keep progress updates to the changed finding, uncertainty, and next discriminator:
 
 ```text
 Status: investigating | provisional cause | strongly supported cause | root cause confirmed | fix verified locally | production verification pending | verified in production
